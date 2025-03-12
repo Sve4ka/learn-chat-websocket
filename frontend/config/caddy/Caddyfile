@@ -1,0 +1,15 @@
+http://localhost:3000 {
+        encode gzip
+        handle /api/* {
+                reverse_proxy http://212.193.26.64:8080
+        }
+        handle {
+                root * /app/dist
+                try_files {path} /index.html
+                file_server
+        }
+        handle_errors {
+                respond "{err.status_code} {err.status_text}"
+        }
+}
+

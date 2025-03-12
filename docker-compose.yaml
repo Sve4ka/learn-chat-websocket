@@ -1,0 +1,59 @@
+version: "3.8"
+services:
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: config/docker/Dockerfile
+      args:
+        VITE_API_URL: ${API_BASEURL}
+    container_name: frontend
+    restart: always
+    environment:
+      - VITE_API_URL=${API_BASEURL}
+    expose: [3000]
+    ports:
+      - "3000:3000"
+    volumes:
+      - ./frontend/public:/usr/share/caddy/public:ro
+    depends_on:
+      backend:
+        condition: service_started
+
+  postgres-database:
+    image: postgres:latest
+    ports:
+      - "5432:5432"
+    environment:
+      POSTGRES_DB: ${DB_NAME}
+      POSTGRES_USER: ${DB_USER}
+      POSTGRES_PASSWORD: ${DB_PASSWORD}
+    healthcheck:
+      test: [ "CMD-SHELL", "pg_isready -h postgres-database -p 5432" ] # Изменено
+      interval: 3s
+      timeout: 3s
+      retries: 100
+    volumes:
+      - ../../data/postgres:/var/lib/postgresql/dat
+
+  backend:
+    build:
+      context: ./backend/
+      dockerfile: deploy/Dockerfile
+    container_name: backend
+    ports:
+      - "8080:8080"
+    environment:
+      DB_HOST: ${DB_HOST}
+      DB_PORT: ${DB_PORT}
+      DB_USER: ${DB_USER}
+      DB_PASSWORD: ${DB_PASSWORD}
+      DB_NAME: ${DB_NAME}
+      TIMEOUT: ${TIME_OUT}
+    depends_on:
+      - postgres-database
+    volumes:
+      - ../../data/app:/backend/cmd/log
+
+
+volumes:
+  postgres_data:
