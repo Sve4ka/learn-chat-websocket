@@ -1,11 +1,17 @@
 import { useEffect, useRef, useState, useCallback } from 'react';
 
-const useWebSocket = (url: string) => {
+const useWebSocket = (chatId: number | null) => {
     const [isConnected, setIsConnected] = useState(false);
     const [messages, setMessages] = useState<any[]>([]);
     const socketRef = useRef<WebSocket | null>(null);
 
+    // Установить соединение WebSocket при изменении chatId
     const connect = useCallback(() => {
+        if (chatId === null) {
+            return; // Не подключаться, если нет выбранного чата
+        }
+
+        const url = `ws://localhost:8080/ws/chat/${chatId}`;
         socketRef.current = new WebSocket(url);
 
         socketRef.current.onopen = () => {
@@ -30,7 +36,7 @@ const useWebSocket = (url: string) => {
         socketRef.current.onerror = (error: Event) => {
             console.error('WebSocket error:', error);
         };
-    }, [url]);
+    }, [chatId]); // Переподключение при изменении chatId
 
     const sendMessage = useCallback((message: any) => {
         if (socketRef.current && socketRef.current.readyState === WebSocket.OPEN) {
@@ -48,22 +54,16 @@ const useWebSocket = (url: string) => {
     }, []);
 
     useEffect(() => {
-        if (!isConnected) {
-            const timeout = setTimeout(() => {
-                connect(); // <-- Одиночный вызов!
-            }, 5000);
-            return () => clearTimeout(timeout);
+        if (chatId !== null) {
+            connect(); // Подключаемся к WebSocket, если выбран чат
         }
-    }, [isConnected, connect]);
 
-    useEffect(() => {
-        connect();
         return () => {
             if (socketRef.current) {
-                socketRef.current.close();
+                socketRef.current.close(); // Закрываем соединение при переключении чатов
             }
         };
-    }, [connect]);
+    }, [chatId, connect]); // Переподключение, если chatId изменился
 
     return {
         isConnected,
@@ -74,3 +74,4 @@ const useWebSocket = (url: string) => {
 };
 
 export default useWebSocket;
+

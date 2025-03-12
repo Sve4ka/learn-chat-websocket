@@ -118,6 +118,44 @@ func (r RepoChat) Chat(ctx context.Context, chatID int) (*models.AllChat, error)
 	return &chat, nil
 }
 
+func (r RepoChat) ChatMessage(ctx context.Context, message models.MessageChatBase) (*models.MessageChat, error) {
+	var id int
+	var newMessage models.MessageChat
+	transaction, err := r.db.BeginTxx(ctx, nil)
+	if err != nil {
+		return nil, cerr.Transaction(err)
+	}
+
+	row := r.db.QueryRowContext(ctx, "SELECT name FROM users WHERE id = $1", message.SenderID)
+	err = row.Scan(&message.SenderName)
+	if err != nil {
+		return nil, cerr.Scan(err)
+	}
+	row = transaction.QueryRowContext(ctx, "INSERT INTO messages (id_user, name_user, text, time, id_chat) values ($1, $2, $3, $4, $5) returning id", message.SenderID, message.SenderName, message.Text, message.Timestamp, message.ChatID)
+	err = row.Scan(&id)
+	if err != nil {
+		if rbErr := transaction.Rollback(); rbErr != nil {
+			return nil, cerr.Rollback(err)
+		}
+		return nil, cerr.Scan(err)
+	}
+	if err = transaction.Commit(); err != nil {
+		if rbErr := transaction.Rollback(); rbErr != nil {
+			return nil, cerr.Rollback(err)
+		}
+		return nil, cerr.Commit(err)
+	}
+	newMessage = models.MessageChat{
+		ChatID: message.ChatID,
+		Message: models.Message{
+			ID:          id,
+			MessageBase: message.MessageBase,
+		},
+	}
+	return &newMessage, nil
+
+}
+
 func (r RepoChat) GetAllMessage(ctx context.Context) ([]models.Message, error) {
 	var messages []models.Message
 	rows, err := r.db.QueryContext(ctx, "SELECT id, id_user, name_user, text, time from messages")
@@ -134,4 +172,21 @@ func (r RepoChat) GetAllMessage(ctx context.Context) ([]models.Message, error) {
 	}
 	return messages, nil
 
+}
+
+func (r RepoChat) GetAllChats(ctx context.Context) ([]models.Chat, error) {
+	var chats []models.Chat
+	rows, err := r.db.QueryContext(ctx, "SELECT id, name from chat")
+	if err != nil {
+		return nil, cerr.ExecContext(err)
+	}
+	for rows.Next() {
+		var chat models.Chat
+		err = rows.Scan(&chat.ID, &chat.Name)
+		if err != nil {
+			return nil, cerr.Scan(err)
+		}
+		chats = append(chats, chat)
+	}
+	return chats, nil
 }

@@ -20,4 +20,6 @@ type ChatRepo interface {
 	Message(ctx context.Context, message models.MessageBase) (*models.Message, error)
 	Chat(ctx context.Context, chatID int) (*models.AllChat, error)
 	GetAllMessage(ctx context.Context) ([]models.Message, error)
+	ChatMessage(ctx context.Context, message models.MessageChatBase) (*models.MessageChat, error)
+	GetAllChats(ctx context.Context) ([]models.Chat, error)
 }

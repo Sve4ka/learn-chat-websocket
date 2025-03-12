@@ -2,6 +2,10 @@ package models
 
 import "time"
 
+type NewChat struct {
+	Name string `json:"name"`
+}
+
 type Chat struct {
 	ID   int    `json:"id"`
 	Name string `json:"name"`
@@ -22,8 +26,8 @@ type MessageBase struct {
 }
 
 type Message struct {
-	MessageBase
 	ID int `json:"id"`
+	MessageBase
 }
 type AddUserChat struct {
 	ChatID int `json:"chat_id"`
@@ -33,4 +37,14 @@ type AddUserChat struct {
 type AllChat struct {
 	Chat
 	Messages []Message `json:"messages"`
+}
+
+type MessageChatBase struct {
+	ChatID int `json:"chat_id"`
+	MessageBase
+}
+
+type MessageChat struct {
+	ChatID int `json:"chat_id"`
+	Message
 }
