@@ -16,13 +16,21 @@ func InitChatRepository(db *sqlx.DB) repository.ChatRepo {
 	return RepoChat{db: db}
 }
 
-func (r RepoChat) Create(ctx context.Context, chatName string) (int, error) {
+func (r RepoChat) Create(ctx context.Context, chatName string, userID int) (int, error) {
 	var id int
 	transaction, err := r.db.BeginTxx(ctx, nil)
 	if err != nil {
 		return 0, cerr.Transaction(err)
 	}
 	row := transaction.QueryRowContext(ctx, "INSERT INTO chat (name) VALUES ($1) returning id", chatName)
+	err = row.Scan(&id)
+	if err != nil {
+		if rbErr := transaction.Rollback(); rbErr != nil {
+			return 0, cerr.Rollback(err)
+		}
+		return 0, cerr.Scan(err)
+	}
+	row = transaction.QueryRowContext(ctx, "INSERT INTO chat_user (id_user, id_chat) VALUES ($1, $2) returning id_chat", userID, id)
 	err = row.Scan(&id)
 	if err != nil {
 		if rbErr := transaction.Rollback(); rbErr != nil {
@@ -103,13 +111,13 @@ func (r RepoChat) Chat(ctx context.Context, chatID int) (*models.AllChat, error)
 		return nil, cerr.Scan(err)
 	}
 	chat.ID = chatID
-	rows, err := r.db.QueryContext(ctx, "SELECT id, id_user, name_user, text from messages where id_chat = $1", chatID)
+	rows, err := r.db.QueryContext(ctx, "SELECT id, id_user, name_user, text, time from messages where id_chat = $1", chatID)
 	if err != nil {
 		return nil, cerr.ExecContext(err)
 	}
 	for rows.Next() {
 		var message models.Message
-		err = rows.Scan(&message.ID, &message.SenderID, &message.SenderName, &message.Text)
+		err = rows.Scan(&message.ID, &message.SenderID, &message.SenderName, &message.Text, &message.Timestamp)
 		if err != nil {
 			return nil, cerr.Scan(err)
 		}
@@ -189,4 +197,27 @@ func (r RepoChat) GetAllChats(ctx context.Context) ([]models.Chat, error) {
 		chats = append(chats, chat)
 	}
 	return chats, nil
+}
+
+func (r RepoChat) GetUsersChats(ctx context.Context, userID int) ([]models.Chat, error) {
+	var chats []models.Chat
+	rows, err := r.db.QueryContext(ctx, "SELECT id_chat from chat_user where id_user = $1", userID)
+	if err != nil {
+		return nil, cerr.ExecContext(err)
+	}
+	for rows.Next() {
+		var chat models.Chat
+		err = rows.Scan(&chat.ID)
+		if err != nil {
+			return nil, cerr.Scan(err)
+		}
+		row := r.db.QueryRowContext(ctx, "SELECT name from chat where id = $1", chat.ID)
+		err = row.Scan(&chat.Name)
+		if err != nil {
+			return nil, cerr.Scan(err)
+		}
+		chats = append(chats, chat)
+	}
+	return chats, nil
+
 }

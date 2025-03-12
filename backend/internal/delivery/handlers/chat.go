@@ -177,15 +177,32 @@ func (h *ChatHandler) GetOldMessages(g *gin.Context) {
 }
 
 func (h *ChatHandler) GetChats(g *gin.Context) {
+	id := g.Param("id")
+	aid, err := strconv.Atoi(id)
+	if err != nil {
+		h.log.Error(err.Error())
+		g.JSON(418, gin.H{"error": err.Error()})
+	}
 	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 	defer cancel()
 
-	chats, err := h.repo.GetAllChats(ctx)
+	chats, err := h.repo.GetUsersChats(ctx, aid)
 
 	if err != nil {
 		h.log.Error(err.Error())
 		g.JSON(418, gin.H{"error": err.Error()})
 		return
+	}
+	if len(chats) == 0 {
+		var newChat models.Chat
+		newChat.ID, err = h.repo.Create(ctx, "Избранное", aid)
+		if err != nil {
+			h.log.Error(err.Error())
+			g.JSON(418, gin.H{"error": err.Error()})
+			return
+		}
+		newChat.Name = "Избранное"
+		chats = append(chats, newChat)
 	}
 	g.JSON(http.StatusOK, gin.H{"chats": chats})
 }
@@ -213,6 +230,12 @@ func (h *ChatHandler) GetMessages(g *gin.Context) {
 }
 
 func (h *ChatHandler) CreateChat(g *gin.Context) {
+	id := g.Param("userID")
+	aid, err := strconv.Atoi(id)
+	if err != nil {
+		h.log.Error(err.Error())
+		g.JSON(418, gin.H{"error": err.Error()})
+	}
 	var newChat models.NewChat
 
 	if err := g.ShouldBindJSON(&newChat); err != nil {
@@ -222,13 +245,38 @@ func (h *ChatHandler) CreateChat(g *gin.Context) {
 	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 	defer cancel()
 
-	id, err := h.repo.Create(ctx, newChat.Name)
+	chatID, err := h.repo.Create(ctx, newChat.Name, aid)
 	if err != nil {
 		h.log.Error(err.Error())
 		g.JSON(418, gin.H{"error": err.Error()})
 	}
 	var chat models.Chat
-	chat.ID = id
+	chat.ID = chatID
 	chat.Name = newChat.Name
 	g.JSON(http.StatusOK, chat)
+}
+
+func (h *ChatHandler) AddUser(g *gin.Context) {
+	idChat := g.Param("idChat")
+	chatID, err := strconv.Atoi(idChat)
+	if err != nil {
+		h.log.Error(err.Error())
+		g.JSON(418, gin.H{"error": err.Error()})
+	}
+	idUser := g.Param("idUser")
+	userID, err := strconv.Atoi(idUser)
+	if err != nil {
+		h.log.Error(err.Error())
+		g.JSON(418, gin.H{"error": err.Error()})
+	}
+	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+	defer cancel()
+
+	id, err := h.repo.AddUser(ctx, chatID, userID)
+	if err != nil {
+		h.log.Error(err.Error())
+		g.JSON(418, gin.H{"error": err.Error()})
+	}
+	g.JSON(http.StatusOK, gin.H{"chat": id})
+
 }

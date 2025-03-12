@@ -15,11 +15,12 @@ type UserRepo interface {
 }
 
 type ChatRepo interface {
-	Create(ctx context.Context, chatName string) (int, error)
+	Create(ctx context.Context, chatName string, userID int) (int, error)
 	AddUser(ctx context.Context, chatID int, userID int) (int, error)
 	Message(ctx context.Context, message models.MessageBase) (*models.Message, error)
 	Chat(ctx context.Context, chatID int) (*models.AllChat, error)
 	GetAllMessage(ctx context.Context) ([]models.Message, error)
 	ChatMessage(ctx context.Context, message models.MessageChatBase) (*models.MessageChat, error)
 	GetAllChats(ctx context.Context) ([]models.Chat, error)
+	GetUsersChats(ctx context.Context, userID int) ([]models.Chat, error)
 }

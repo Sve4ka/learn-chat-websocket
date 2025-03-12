@@ -13,9 +13,10 @@ func RegisterChatRouter(r *gin.Engine, db *sqlx.DB, logger *log.Logs) *gin.Route
 
 	chatRepo := chat.InitChatRepository(db)
 	chatHandler := handlers.InitChatHandler(chatRepo, logger)
-	chatRouter.POST("/chat", chatHandler.CreateChat)
-	chatRouter.GET("/chat", chatHandler.GetChats)
+	chatRouter.POST("/chat/:userID", chatHandler.CreateChat)
+	chatRouter.GET("/chat/user/:id", chatHandler.GetChats)
 	chatRouter.GET("/chat/:id", chatHandler.WSEndpoint)
 	chatRouter.GET("/chat/messages/:id", chatHandler.GetMessages)
+	chatRouter.POST("/chat/add/:idChat/:idUser", chatHandler.AddUser)
 	return chatRouter
 }

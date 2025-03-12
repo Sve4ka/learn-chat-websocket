@@ -1,5 +1,5 @@
-import React, { useState, useEffect, useRef } from 'react';
-import { useNavigate } from 'react-router-dom';
+import React, {useEffect, useRef, useState} from 'react';
+import {useNavigate} from 'react-router-dom';
 import useWebSocket from './useWebSocket';
 
 interface Message {
@@ -19,7 +19,7 @@ const Chat: React.FC = () => {
     const [chats, setChats] = useState<Chat[]>([]);
     const [currentChat, setCurrentChat] = useState<Chat | null>(null);
     const [allMessages, setAllMessages] = useState<Message[]>([]);
-    const { isConnected, messages, sendMessage } = useWebSocket(currentChat ? currentChat.id : null); // Передача динамического URL
+    const {isConnected, messages, sendMessage} = useWebSocket(currentChat ? currentChat.id : null); // Передача динамического URL
     const userId = JSON.parse(localStorage.getItem('userId') || "0");
     const navigate = useNavigate();
     const messageContainerRef = useRef<HTMLDivElement>(null);
@@ -29,6 +29,8 @@ const Chat: React.FC = () => {
     const [messagesError, setMessagesError] = useState<string | null>(null); // Состояние ошибки сообщений
     const [isCreatingChat, setIsCreatingChat] = useState(false); // Состояние создания чата
     const [newChatNameInput, setNewChatNameInput] = useState(''); // Состояние для ввода имени нового чата
+    const [newUserId, setNewUserId] = useState(''); // Новое состояние для ввода ID пользователя
+    const [addUserError, setAddUserError] = useState<string | null>(null); // Ошибка добавления пользователя
 // Перенаправление на страницу логина, если userId отсутствует
     useEffect(() => {
         if (!userId) {
@@ -41,7 +43,7 @@ const Chat: React.FC = () => {
             setChatsLoading(true); // Начало загрузки
             setChatsError(null); // Сброс ошибок
             try {
-                const response = await fetch('http://localhost:8080/ws/chat');
+                const response = await fetch(`http://localhost:8080/ws/chat/user/${userId}`);
                 if (!response.ok) {
                     throw new Error(`Не удалось получить чаты: ${response.status}`);
                 }
@@ -54,7 +56,6 @@ const Chat: React.FC = () => {
                 setChatsLoading(false); // Завершение загрузки в любом случае
             }
         };
-
         fetchChats();
     }, []);
 
@@ -130,10 +131,10 @@ const Chat: React.FC = () => {
         setIsCreatingChat(true); // Начало создания чата
         setChatsError(null); // Сброс ошибок
         try {
-            const response = await fetch('http://localhost:8080/ws/chat', {
+            const response = await fetch(`http://localhost:8080/ws/chat/${userId}`, {
                 method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ name: newChatNameInput.trim() || "New Chat" }), // Используем введенное имя или "New Chat" по умолчанию
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({name: newChatNameInput.trim() || "New Chat"}), // Используем введенное имя или "New Chat" по умолчанию
             });
             if (!response.ok) {
                 throw new Error(`Не удалось создать чат: ${response.status}`);
@@ -146,6 +147,29 @@ const Chat: React.FC = () => {
             setChatsError(error.message); // Установка ошибки
         } finally {
             setIsCreatingChat(false); // Завершение создания чата
+        }
+    };
+
+    // Функция для добавления пользователя в чат
+    const handleAddUser = async () => {
+        if (!currentChat || !newUserId) return;
+
+        try {
+            const response = await fetch(
+                `http://localhost:8080/ws/chat/add/${currentChat.id}/${newUserId}`,
+                {
+                    method: 'POST',
+                }
+            );
+
+            if (!response.ok) {
+                throw new Error(`Ошибка: ${response.status}`);
+            }
+            setNewUserId('');
+            setAddUserError(null);
+        } catch (error: any) {
+            console.error('Ошибка добавления пользователя:', error);
+            setAddUserError(error.message);
         }
     };
 
@@ -182,10 +206,44 @@ const Chat: React.FC = () => {
                 </div>
             </div>
 
+
             {currentChat && (
                 <div style={{padding: '20px', maxWidth: '600px', margin: '0 auto'}}>
                     <h2>{currentChat.name}</h2>
-                    {messagesError && <p style={{ color: 'red' }}>Ошибка загрузки сообщений: {messagesError}</p>} {/* Отображение ошибки сообщений */}
+
+                    {/* Блок добавления пользователя */}
+
+                    {currentChat.name === "Избранное" ? (<div>Ваш чат с самим с собой</div>) : (
+                        <div style={{marginBottom: '15px', display: 'flex', gap: '10px'}}>
+                            <input
+                                type="text"
+                                placeholder="Добавить пользователя по ID"
+                                value={newUserId}
+                                onChange={(e) => setNewUserId(e.target.value)}
+                                style={{
+                                    flexGrow: 1,
+                                    padding: '6px',
+                                    borderRadius: '4px',
+                                    border: '1px solid #ccc'
+                                }}
+                            />
+                            <button
+                                onClick={handleAddUser}
+                                style={{
+                                    padding: '6px 12px',
+                                    background: '#4CAF50',
+                                    color: 'white',
+                                    border: 'none',
+                                    borderRadius: '4px',
+                                    cursor: 'pointer'
+                                }}
+                            >
+                                Добавить
+                            </button>
+                        </div>)}
+                    {addUserError && <p style={{color: 'red'}}>{addUserError}</p>}
+                    {messagesError && <p style={{color: 'red'}}>Ошибка загрузки
+                        сообщений: {messagesError}</p>} {/* Отображение ошибки сообщений */}
                     {messagesLoading && <p>Загрузка сообщений...</p>} {/* Состояние загрузки сообщений */}
                     <div
                         ref={messageContainerRef}
@@ -201,7 +259,8 @@ const Chat: React.FC = () => {
                         {/* Отображение сообщений */}
                         {allMessages && allMessages.length > 0 ? (
                             allMessages.map((msg, index) => (
-                                <div key={index} style={{ margin: '5px 0', textAlign: msg.sender_id === userId ? 'right' : 'left' }}>
+                                <div key={index}
+                                     style={{margin: '5px 0', textAlign: msg.sender_id === userId ? 'right' : 'left'}}>
                                     <div
                                         style={{
                                             background: msg.sender_id === userId ? '#dcf8c6' : '#e3f2fd',
@@ -211,7 +270,7 @@ const Chat: React.FC = () => {
                                             maxWidth: '80%',
                                         }}
                                     >
-                                        <div style={{ fontSize: '0.8em', color: '#666', marginBottom: '4px' }}>
+                                        <div style={{fontSize: '0.8em', color: '#666', marginBottom: '4px'}}>
                                             {msg.sender_id === userId ? "you" : msg.sender_name} • {msg.timestamp}
                                         </div>
                                         <div>{msg.text}</div>
@@ -223,7 +282,7 @@ const Chat: React.FC = () => {
                         )}
                     </div>
 
-                    <div style={{ display: 'flex', gap: '10px' }}>
+                    <div style={{display: 'flex', gap: '10px'}}>
                         <input
                             type="text"
                             value={inputText}
