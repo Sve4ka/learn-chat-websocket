@@ -29,10 +29,8 @@ const useWebSocket = (chatId: number | null) => {
         socketRef.current.onmessage = (event: MessageEvent) => {
             try {
                 const data = JSON.parse(event.data);
-                console.log(messages)
                 setMessages(() => [data]);
             } catch (error) {
-                console.log(messages)
                 setMessages(() => [event.data]);
             }
         };

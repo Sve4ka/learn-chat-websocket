@@ -37,52 +37,15 @@ const Chat: React.FC = () => {
             navigate('/login');
         }
     }, [userId, navigate]);
+
     // Получение списка чатов
     useEffect(() => {
-        const fetchChats = async () => {
-            setChatsLoading(true); // Начало загрузки
-            setChatsError(null); // Сброс ошибок
-            try {
-                const response = await fetch(`http://localhost:8080/ws/chat/user/${userId}`);
-                if (!response.ok) {
-                    throw new Error(`Не удалось получить чаты: ${response.status}`);
-                }
-                const data: { chats: Chat[] } = await response.json();
-                setChats(data.chats);
-            } catch (error: any) {
-                console.error('Ошибка получения чатов:', error);
-                setChatsError(error.message); // Установка сообщения об ошибке
-            } finally {
-                setChatsLoading(false); // Завершение загрузки в любом случае
-            }
-        };
         fetchChats();
     }, []);
-
-    useEffect(() => {
-        console.log(allMessages)
-    }, [allMessages]);
 
     // Получение сообщений чата при его выборе
     useEffect(() => {
         if (currentChat) {
-            const fetchOldMessages = async () => {
-                setMessagesLoading(true); // Начало загрузки сообщений
-                setMessagesError(null); // Сброс ошибок сообщений
-                try {
-                    const response = await fetch(`http://localhost:8080/ws/chat/messages/${currentChat.id}`);
-                    if (!response.ok) {
-                        throw new Error(`Не удалось получить старые сообщения: ${response.status}`);
-                    }
-                    const data: { messages: Message[] } = await response.json();
-                    setAllMessages(data.messages);
-                } catch (error: any) {
-                    console.error('Ошибка получения старых сообщений:', error);
-                    setMessagesError(error.message); // Установка сообщения об ошибке
-                } finally {
-                    setMessagesLoading(false); // Завершение загрузки сообщений
-                }
-            };
             fetchOldMessages();
         } else {
             setAllMessages([]); // Очистка сообщений при сбросе чата
@@ -93,7 +56,6 @@ const Chat: React.FC = () => {
     useEffect(() => {
         if (messages.length > 0) {
             setAllMessages((prevMessages) => {
-                console.log(prevMessages)
                 const safePrevMessages = prevMessages || []; // Инициализация prevMessages как пустого массива
                 const uniqueNewMessages = messages.filter(newMessage =>
                     !safePrevMessages.some(existingMessage => existingMessage.timestamp === newMessage.timestamp && existingMessage.text === newMessage.text)
@@ -113,9 +75,48 @@ const Chat: React.FC = () => {
                 text: inputText,
                 timestamp: new Date().toString(),
             };
-            console.log(message);
             sendMessage(message);
             setInputText('');
+        }
+    };
+
+    const fetchOldMessages = async () => {
+        setMessagesLoading(true); // Начало загрузки сообщений
+        setMessagesError(null); // Сброс ошибок сообщений
+        if (currentChat) {
+            try {
+                const response = await fetch(`http://localhost:8080/ws/chat/messages/${currentChat.id}`);
+                if (!response.ok) {
+                    throw new Error(`Не удалось получить старые сообщения: ${response.status}`);
+                }
+                const data: { messages: Message[] } = await response.json();
+                setAllMessages(data.messages);
+            } catch (error: any) {
+                console.error('Ошибка получения старых сообщений:', error);
+                setMessagesError(error.message); // Установка сообщения об ошибке
+            } finally {
+                setMessagesLoading(false); // Завершение загрузки сообщений
+            }
+        } else {
+            setAllMessages([]); // Очистка сообщений при сбросе чата
+        }
+    };
+
+    const fetchChats = async () => {
+        setChatsLoading(true); // Начало загрузки
+        setChatsError(null); // Сброс ошибок
+        try {
+            const response = await fetch(`http://localhost:8080/ws/chat/user/${userId}`);
+            if (!response.ok) {
+                throw new Error(`Не удалось получить чаты: ${response.status}`);
+            }
+            const data: { chats: Chat[] } = await response.json();
+            setChats(data.chats);
+        } catch (error: any) {
+            console.error('Ошибка получения чатов:', error);
+            setChatsError(error.message); // Установка сообщения об ошибке
+        } finally {
+            setChatsLoading(false); // Завершение загрузки в любом случае
         }
     };
 
