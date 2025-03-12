@@ -58,6 +58,10 @@ const Chat: React.FC = () => {
         fetchChats();
     }, []);
 
+    useEffect(() => {
+        console.log(allMessages)
+    }, [allMessages]);
+
     // Получение сообщений чата при его выборе
     useEffect(() => {
         if (currentChat) {
@@ -88,13 +92,16 @@ const Chat: React.FC = () => {
     useEffect(() => {
         if (messages.length > 0) {
             setAllMessages((prevMessages) => {
+                console.log(prevMessages)
+                const safePrevMessages = prevMessages || []; // Инициализация prevMessages как пустого массива
                 const uniqueNewMessages = messages.filter(newMessage =>
-                    !prevMessages.some(existingMessage => existingMessage.timestamp === newMessage.timestamp && existingMessage.text === newMessage.text) // все еще используем some, но можно улучшить если есть id у сообщения
+                    !safePrevMessages.some(existingMessage => existingMessage.timestamp === newMessage.timestamp && existingMessage.text === newMessage.text)
                 );
-                return [...prevMessages, ...uniqueNewMessages];
+                return [...safePrevMessages, ...uniqueNewMessages];
             });
         }
     }, [messages]);
+
 
     // Обработка отправки сообщений
     const handleSendMessage = () => {
@@ -103,8 +110,9 @@ const Chat: React.FC = () => {
                 sender_name: "you",
                 sender_id: userId,
                 text: inputText,
-                timestamp: new Date().toLocaleString(),
+                timestamp: new Date().toString(),
             };
+            console.log(message);
             sendMessage(message);
             setInputText('');
         }
@@ -191,25 +199,28 @@ const Chat: React.FC = () => {
                         }}
                     >
                         {/* Отображение сообщений */}
-                        {allMessages.map((msg, index) => (
-                            <div key={index}
-                                 style={{margin: '5px 0', textAlign: msg.sender_id === userId ? 'right' : 'left'}}>
-                                <div
-                                    style={{
-                                        background: msg.sender_id === userId ? '#dcf8c6' : '#e3f2fd',
-                                        padding: '8px',
-                                        borderRadius: '8px',
-                                        display: 'inline-block',
-                                        maxWidth: '80%',
-                                    }}
-                                >
-                                    <div style={{ fontSize: '0.8em', color: '#666', marginBottom: '4px' }}>
-                                        {msg.sender_id === userId ? "you" : msg.sender_name} • {msg.timestamp}
+                        {allMessages && allMessages.length > 0 ? (
+                            allMessages.map((msg, index) => (
+                                <div key={index} style={{ margin: '5px 0', textAlign: msg.sender_id === userId ? 'right' : 'left' }}>
+                                    <div
+                                        style={{
+                                            background: msg.sender_id === userId ? '#dcf8c6' : '#e3f2fd',
+                                            padding: '8px',
+                                            borderRadius: '8px',
+                                            display: 'inline-block',
+                                            maxWidth: '80%',
+                                        }}
+                                    >
+                                        <div style={{ fontSize: '0.8em', color: '#666', marginBottom: '4px' }}>
+                                            {msg.sender_id === userId ? "you" : msg.sender_name} • {msg.timestamp}
+                                        </div>
+                                        <div>{msg.text}</div>
                                     </div>
-                                    <div>{msg.text}</div>
                                 </div>
-                            </div>
-                        ))}
+                            ))
+                        ) : (
+                            <p>Нет сообщений</p>
+                        )}
                     </div>
 
                     <div style={{ display: 'flex', gap: '10px' }}>

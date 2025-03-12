@@ -5,6 +5,7 @@ import (
 	"backend/internal/repository"
 	"backend/pkg/log"
 	"context"
+	"fmt"
 	"github.com/gin-gonic/gin"
 	"github.com/google/uuid"
 	"github.com/gorilla/websocket"
@@ -23,6 +24,7 @@ type ChatHandler struct {
 
 func InitChatHandler(repo repository.ChatRepo, logs *log.Logs) ChatHandler {
 	chats := make(map[int]map[string]*websocket.Conn)
+
 	return ChatHandler{repo: repo, log: logs, chats: chats}
 }
 
@@ -50,6 +52,9 @@ func (h *ChatHandler) WSEndpoint(c *gin.Context) {
 	clientID := uuid.New().String()
 
 	h.mutex.Lock()
+	if h.chats[chatID] == nil {
+		h.chats[chatID] = make(map[string]*websocket.Conn)
+	}
 	h.chats[chatID][clientID] = conn
 	h.mutex.Unlock()
 	done := make(chan struct{})
@@ -81,8 +86,10 @@ func (h *ChatHandler) reader(conn *websocket.Conn, clientID string, done chan<- 
 			h.log.Error(err.Error())
 			break
 		}
+		fmt.Println(getMSG)
 
-		parsedTime, err := time.Parse("02.01.2006, 15:04:05", getMSG.Timestamp)
+		parsedTime, err := time.Parse("Mon Jan 02 2006 15:04:05 GMT-0700 (Москва, стандартное время)", getMSG.Timestamp)
+		fmt.Println(parsedTime, getMSG.Timestamp, err)
 		if err != nil {
 			h.log.Error(err.Error())
 			conn.WriteJSON(map[string]string{"error": "Invalid timestamp"})
@@ -110,6 +117,7 @@ func (h *ChatHandler) reader(conn *websocket.Conn, clientID string, done chan<- 
 			conn.WriteJSON(map[string]string{"error": "Cant save message"})
 			continue
 		}
+		fmt.Println(newMsg)
 
 		h.writer(newMsg, clientID)
 	}
@@ -197,8 +205,11 @@ func (h *ChatHandler) GetMessages(g *gin.Context) {
 		h.log.Error(err.Error())
 		g.JSON(418, gin.H{"error": err.Error()})
 	}
-
-	g.JSON(http.StatusOK, messages.Messages)
+	var out []models.MessageBase
+	for _, elem := range messages.Messages {
+		out = append(out, elem.MessageBase)
+	}
+	g.JSON(http.StatusOK, gin.H{"messages": out})
 }
 
 func (h *ChatHandler) CreateChat(g *gin.Context) {

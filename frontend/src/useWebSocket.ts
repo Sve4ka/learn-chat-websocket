@@ -1,8 +1,15 @@
 import { useEffect, useRef, useState, useCallback } from 'react';
 
+interface Message {
+    sender_name: string;
+    sender_id: number;
+    text: string;
+    timestamp: string;
+}
+
 const useWebSocket = (chatId: number | null) => {
     const [isConnected, setIsConnected] = useState(false);
-    const [messages, setMessages] = useState<any[]>([]);
+    const [messages, setMessages] = useState<Message[]>([]);
     const socketRef = useRef<WebSocket | null>(null);
 
     // Установить соединение WebSocket при изменении chatId
@@ -22,9 +29,11 @@ const useWebSocket = (chatId: number | null) => {
         socketRef.current.onmessage = (event: MessageEvent) => {
             try {
                 const data = JSON.parse(event.data);
-                setMessages((prevMessages) => [...prevMessages, data]);
+                console.log(messages)
+                setMessages(() => [data]);
             } catch (error) {
-                setMessages((prevMessages) => [...prevMessages, event.data]);
+                console.log(messages)
+                setMessages(() => [event.data]);
             }
         };
 
