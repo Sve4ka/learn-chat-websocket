@@ -14,17 +14,26 @@ const useWebSocket = (chatId: number | null) => {
     const [messages, setMessages] = useState<Message[]>([]);
     const socketRef = useRef<WebSocket | null>(null);
     const reconnectAttempts = useRef(0);
+    const isClosingRef = useRef(false); // Флаг процесса закрытия
 
     // Установить соединение WebSocket при изменении chatId
     const connect = useCallback(() => {
         if (socketRef.current?.readyState === WebSocket.OPEN) {
-            socketRef.current.close(1000); // Закрыть предыдущее соединение
+            isClosingRef.current = true;
+            socketRef.current.close(1000);
+
+            // Ждем завершения закрытия
+            const closeTimeout = setTimeout(() => {
+                if (socketRef.current) {
+                    socketRef.current.close(1000);
+                }
+                isClosingRef.current = false;
+            }, 5000);
+
+            return () => clearTimeout(closeTimeout);
         }
         if (chatId === null) {
             return; // Не подключаться, если нет выбранного чата
-        }
-        if (socketRef.current?.OPEN) {
-            socketRef.current.close(1000)
         }
 
         const url = `${URL.WS}/ws/chat/${chatId}`;
@@ -33,6 +42,7 @@ const useWebSocket = (chatId: number | null) => {
         socketRef.current.onopen = () => {
             setIsConnected(true);
             console.log('WebSocket connected');
+            isClosingRef.current = false;
         };
 
         socketRef.current.onmessage = (event: MessageEvent) => {
@@ -51,6 +61,7 @@ const useWebSocket = (chatId: number | null) => {
                     socketRef.current.close(1000); // Закрыть предыдущее соединение
                 }
                 console.log('WebSocket disconnected');
+                isClosingRef.current = false;
                 return;
 
             } // Нормальное закрытие
@@ -63,6 +74,7 @@ const useWebSocket = (chatId: number | null) => {
 
         socketRef.current.onerror = (error: Event) => {
             console.error('WebSocket error:', error);
+            isClosingRef.current = false;
         };
     }, [chatId]); // Переподключение при изменении chatId
 
