@@ -1,4 +1,3 @@
-version: "3.8"
 services:
   frontend:
     build:
@@ -10,9 +9,9 @@ services:
     restart: always
     environment:
       - VITE_API_URL=${API_BASEURL}
-    expose: [3000]
+
     ports:
-      - "3000:3000"
+      - "80:80"
     volumes:
       - ./frontend/public:/usr/share/caddy/public:ro
     depends_on:

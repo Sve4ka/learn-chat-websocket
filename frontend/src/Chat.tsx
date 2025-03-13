@@ -1,6 +1,7 @@
-import React, {useEffect, useRef, useState} from 'react';
+import React, {useEffect, useState} from 'react';
 import {useNavigate} from 'react-router-dom';
 import useWebSocket from './useWebSocket';
+import URL from "./api.ts"
 
 interface Message {
     sender_name: string;
@@ -22,7 +23,7 @@ const Chat: React.FC = () => {
     const {isConnected, messages, sendMessage} = useWebSocket(currentChat ? currentChat.id : null); // Передача динамического URL
     const userId = JSON.parse(localStorage.getItem('userId') || "0");
     const navigate = useNavigate();
-    const messageContainerRef = useRef<HTMLDivElement>(null);
+    // const messageContainerRef = useRef<HTMLDivElement>(null);
     const [chatsLoading, setChatsLoading] = useState(false); // Состояние загрузки чатов
     const [chatsError, setChatsError] = useState<string | null>(null); // Состояние ошибки чатов
     const [messagesLoading, setMessagesLoading] = useState(false); // Состояние загрузки сообщений
@@ -85,7 +86,7 @@ const Chat: React.FC = () => {
         setMessagesError(null); // Сброс ошибок сообщений
         if (currentChat) {
             try {
-                const response = await fetch(`http://localhost:8080/ws/chat/messages/${currentChat.id}`);
+                const response = await fetch(`${URL.API}/ws/chat/messages/${currentChat.id}`);
                 if (!response.ok) {
                     throw new Error(`Не удалось получить старые сообщения: ${response.status}`);
                 }
@@ -106,7 +107,7 @@ const Chat: React.FC = () => {
         setChatsLoading(true); // Начало загрузки
         setChatsError(null); // Сброс ошибок
         try {
-            const response = await fetch(`http://localhost:8080/ws/chat/user/${userId}`);
+            const response = await fetch(`${URL.API}/ws/chat/user/${userId}`);
             if (!response.ok) {
                 throw new Error(`Не удалось получить чаты: ${response.status}`);
             }
@@ -132,7 +133,7 @@ const Chat: React.FC = () => {
         setIsCreatingChat(true); // Начало создания чата
         setChatsError(null); // Сброс ошибок
         try {
-            const response = await fetch(`http://localhost:8080/ws/chat/${userId}`, {
+            const response = await fetch(`${URL.API}/ws/chat/${userId}`, {
                 method: 'POST',
                 headers: {'Content-Type': 'application/json'},
                 body: JSON.stringify({name: newChatNameInput.trim() || "New Chat"}), // Используем введенное имя или "New Chat" по умолчанию
@@ -157,7 +158,7 @@ const Chat: React.FC = () => {
 
         try {
             const response = await fetch(
-                `http://localhost:8080/ws/chat/add/${currentChat.id}/${newUserId}`,
+                `${URL.API}/ws/chat/add/${currentChat.id}/${newUserId}`,
                 {
                     method: 'POST',
                 }
@@ -175,140 +176,116 @@ const Chat: React.FC = () => {
     };
 
     return (
-        <div>
-            <div>
+        <div className="chat-container">
+            {/* Список чатов */}
+            <div className="chat-list">
                 <h3>Чаты</h3>
-                {chatsError &&
-                    <p style={{color: 'red'}}>Ошибка загрузки чатов: {chatsError}</p>} {/* Отображение ошибки чатов */}
-                {chatsLoading && <p>Загрузка чатов...</p>} {/* Состояние загрузки чатов */}
-                <ul>
-                    {chats.map(chat => (
-                        <li key={chat.id} onClick={() => setCurrentChat(chat)} style={{
-                            cursor: 'pointer',
-                            fontWeight: currentChat?.id === chat.id ? 'bold' : 'normal'
-                        }}> {/* Выделение выбранного чата */}
-                            {chat.name}
-                        </li>
-                    ))}
-                </ul>
-                <div>
+                {chatsError && (
+                    <div className="error-message">{chatsError}</div>
+                )}
+                {chatsLoading && (
+                    <div className="loading-indicator">Загрузка чатов...</div>
+                )}
+
+                <div className="add-user-form">
                     <input
                         type="text"
                         placeholder="Имя нового чата"
                         value={newChatNameInput}
                         onChange={(e) => setNewChatNameInput(e.target.value)}
+                        className="input-field"
                     />
-                    <button onClick={handleCreateChat}
-                            disabled={isCreatingChat}> {/* Кнопка создания чата, disabled во время создания */}
+                    <button
+                        onClick={handleCreateChat}
+                        disabled={isCreatingChat}
+                        className="button"
+                    >
                         {isCreatingChat ? 'Создание...' : 'Создать чат'}
                     </button>
-                    {chatsError && <p style={{color: 'red'}}>Ошибка создания
-                        чата: {chatsError}</p>} {/* Отображение ошибки создания чата */}
                 </div>
+                <ul>
+                    {chats.map(chat => (
+                        <li
+                            key={chat.id}
+                            onClick={() => setCurrentChat(chat)}
+                            className={`chat-item ${currentChat?.id === chat.id ? 'active' : ''}`}
+                        >
+                            {chat.name}
+                        </li>
+                    ))}
+                </ul>
+
+
+                {chatsError && (
+                    <div className="error-message">{chatsError}</div>
+                )}
             </div>
 
-
+            {/* Содержимое чата */}
             {currentChat && (
-                <div style={{padding: '20px', maxWidth: '600px', margin: '0 auto'}}>
-                    <h2>{currentChat.name}</h2>
+                <div className="chat-content">
+                    <div className="pad">
+                        <h2>{currentChat.name}</h2>
 
-                    {/* Блок добавления пользователя */}
-
-                    {currentChat.name === "Избранное" ? (<div>Ваш чат с самим с собой</div>) : (
-                        <div style={{marginBottom: '15px', display: 'flex', gap: '10px'}}>
-                            <input
-                                type="text"
-                                placeholder="Добавить пользователя по ID"
-                                value={newUserId}
-                                onChange={(e) => setNewUserId(e.target.value)}
-                                style={{
-                                    flexGrow: 1,
-                                    padding: '6px',
-                                    borderRadius: '4px',
-                                    border: '1px solid #ccc'
-                                }}
-                            />
+                        {currentChat.name !== "Избранное" && (
+                            <div className="add-user-form">
+                                <input
+                                    type="text"
+                                    placeholder="Добавить пользователя по ID"
+                                    value={newUserId}
+                                    onChange={(e) => setNewUserId(e.target.value)}
+                                    className="input-field"
+                                />
                             <button
                                 onClick={handleAddUser}
-                                style={{
-                                    padding: '6px 12px',
-                                    background: '#4CAF50',
-                                    color: 'white',
-                                    border: 'none',
-                                    borderRadius: '4px',
-                                    cursor: 'pointer'
-                                }}
+                                className="button"
                             >
                                 Добавить
                             </button>
-                        </div>)}
-                    {addUserError && <p style={{color: 'red'}}>{addUserError}</p>}
-                    {messagesError && <p style={{color: 'red'}}>Ошибка загрузки
-                        сообщений: {messagesError}</p>} {/* Отображение ошибки сообщений */}
-                    {messagesLoading && <p>Загрузка сообщений...</p>} {/* Состояние загрузки сообщений */}
-                    <div
-                        ref={messageContainerRef}
-                        style={{
-                            height: '400px',
-                            border: '1px solid #ccc',
-                            overflowY: 'auto',
-                            marginBottom: '10px',
-                            padding: '10px',
-                            position: 'relative',
-                        }}
-                    >
-                        {/* Отображение сообщений */}
-                        {allMessages && allMessages.length > 0 ? (
+                        </div>
+                    )}
+                </div>
+                    <div className="message-list">
+                        {addUserError && (
+                            <div className="error-message">{addUserError}</div>
+                        )}
+                        {messagesError && (
+                            <div className="error-message">Ошибка загрузки сообщений: {messagesError}</div>
+                        )}
+                        {messagesLoading && (
+                            <div className="loading-indicator">Загрузка сообщений...</div>
+                        )}
+
+                        {allMessages === null || allMessages.length <= 0  ? (
+                            <div className="loading-indicator">Нет сообщений</div>
+                        )
+                        :
+                            (
                             allMessages.map((msg, index) => (
-                                <div key={index}
-                                     style={{margin: '5px 0', textAlign: msg.sender_id === userId ? 'right' : 'left'}}>
-                                    <div
-                                        style={{
-                                            background: msg.sender_id === userId ? '#dcf8c6' : '#e3f2fd',
-                                            padding: '8px',
-                                            borderRadius: '8px',
-                                            display: 'inline-block',
-                                            maxWidth: '80%',
-                                        }}
-                                    >
-                                        <div style={{fontSize: '0.8em', color: '#666', marginBottom: '4px'}}>
-                                            {msg.sender_id === userId ? "you" : msg.sender_name} • {msg.timestamp}
-                                        </div>
-                                        <div>{msg.text}</div>
+                                <div key={index} className={`message ${msg.sender_id === userId ? 'sent' : 'received'}`}>
+                                    <div className="message-header">
+                                        {msg.sender_id === userId ? "you" : msg.sender_name} • {msg.timestamp}
                                     </div>
+                                    <div>{msg.text}</div>
                                 </div>
                             ))
-                        ) : (
-                            <p>Нет сообщений</p>
                         )}
                     </div>
 
-                    <div style={{display: 'flex', gap: '10px'}}>
+                    <div className="message-input-container">
                         <input
                             type="text"
                             value={inputText}
                             onChange={(e) => setInputText(e.target.value)}
                             onKeyPress={handleKeyPress}
-                            style={{
-                                flexGrow: 1,
-                                padding: '8px',
-                                borderRadius: '4px',
-                                border: '1px solid #ccc',
-                            }}
-                            disabled={!isConnected}
                             placeholder="Введите ваше сообщение..."
+                            className="input-field"
+                            disabled={!isConnected}
                         />
                         <button
                             onClick={handleSendMessage}
-                            style={{
-                                padding: '8px 16px',
-                                background: isConnected ? '#031777' : '#ccc',
-                                color: 'white',
-                                border: 'none',
-                                borderRadius: '4px',
-                                cursor: isConnected ? 'pointer' : 'not-allowed',
-                            }}
                             disabled={!isConnected}
+                            className="button"
                         >
                             Отправить
                         </button>

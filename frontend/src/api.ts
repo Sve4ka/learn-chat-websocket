@@ -1,10 +1,13 @@
 // api.ts
 import { User, LoginData } from './types';
 
-const API_URL = 'http://localhost:8080';
+export default class URL {
+    static API = `http://localhost:8080`;
+    static WS = `ws://localhost:8080`;
+}
 
 export const loginUser = async (data: LoginData): Promise<number> => {
-    const response = await fetch(`${API_URL}/user/login`, {
+    const response = await fetch(`${URL.API}/user/login`, {
         method: 'POST',
         headers: {
             'Content-Type': 'application/json',
@@ -22,7 +25,7 @@ export const loginUser = async (data: LoginData): Promise<number> => {
 };
 
 export const getUser = async (id: number): Promise<User> => {
-    const response = await fetch(`${API_URL}/user/{id}?id=${id}`, {
+    const response = await fetch(`${URL.API}/user/{id}?id=${id}`, {
         method: 'GET',
         headers: {
             'accept': 'application/json'

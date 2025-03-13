@@ -19,7 +19,8 @@ CREATE TABLE IF NOT EXISTS messages
     id_chat   int,
     id_user   int,
     name_user varchar,
-    text      varchar
+    text      varchar,
+    time timestamp
 );
 -- +goose StatementEnd
 

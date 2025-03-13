@@ -51,6 +51,13 @@ func (h *ChatHandler) WSEndpoint(c *gin.Context) {
 	}
 	clientID := uuid.New().String()
 
+	conn.SetReadLimit(1024 * 1024)
+	conn.SetReadDeadline(time.Now().Add(60 * time.Second))
+	conn.SetPongHandler(func(string) error {
+		conn.SetReadDeadline(time.Now().Add(60 * time.Second))
+		return nil
+	})
+
 	h.mutex.Lock()
 	if h.chats[chatID] == nil {
 		h.chats[chatID] = make(map[string]*websocket.Conn)
@@ -64,12 +71,6 @@ func (h *ChatHandler) WSEndpoint(c *gin.Context) {
 }
 
 func (h *ChatHandler) reader(conn *websocket.Conn, clientID string, done chan<- struct{}, chatID int) {
-	conn.SetReadLimit(1024 * 1024)
-	conn.SetReadDeadline(time.Now().Add(60 * time.Second))
-	conn.SetPongHandler(func(string) error {
-		conn.SetReadDeadline(time.Now().Add(60 * time.Second))
-		return nil
-	})
 	defer func() {
 		h.mutex.Lock()
 		delete(h.chats[chatID], clientID)
@@ -141,7 +142,7 @@ func (h *ChatHandler) send(conn *websocket.Conn, message *models.MessageChat, wg
 }
 
 func (h *ChatHandler) writePump(conn *websocket.Conn, clientID string, done <-chan struct{}) {
-	ticker := time.NewTicker(60 * time.Second)
+	ticker := time.NewTicker(50 * time.Second)
 	defer func() {
 		ticker.Stop()
 		conn.Close()
@@ -150,7 +151,8 @@ func (h *ChatHandler) writePump(conn *websocket.Conn, clientID string, done <-ch
 	for {
 		select {
 		case <-ticker.C:
-			err := conn.WriteControl(websocket.PingMessage, []byte{}, time.Now().Add(60*time.Second))
+			conn.SetWriteDeadline(time.Now().Add(10 * time.Second))
+			err := conn.WriteControl(websocket.PingMessage, []byte{}, time.Now().Add(10*time.Second))
 			if err != nil {
 				h.log.Error(err.Error())
 				return

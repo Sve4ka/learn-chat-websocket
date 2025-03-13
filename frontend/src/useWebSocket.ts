@@ -1,5 +1,7 @@
 import { useEffect, useRef, useState, useCallback } from 'react';
 
+import URL from "./api.ts"
+
 interface Message {
     sender_name: string;
     sender_id: number;
@@ -11,14 +13,21 @@ const useWebSocket = (chatId: number | null) => {
     const [isConnected, setIsConnected] = useState(false);
     const [messages, setMessages] = useState<Message[]>([]);
     const socketRef = useRef<WebSocket | null>(null);
+    const reconnectAttempts = useRef(0);
 
     // Установить соединение WebSocket при изменении chatId
     const connect = useCallback(() => {
+        if (socketRef.current?.readyState === WebSocket.OPEN) {
+            socketRef.current.close(1000); // Закрыть предыдущее соединение
+        }
         if (chatId === null) {
             return; // Не подключаться, если нет выбранного чата
         }
+        if (socketRef.current?.OPEN) {
+            socketRef.current.close(1000)
+        }
 
-        const url = `ws://localhost:8080/ws/chat/${chatId}`;
+        const url = `${URL.WS}/ws/chat/${chatId}`;
         socketRef.current = new WebSocket(url);
 
         socketRef.current.onopen = () => {
@@ -35,9 +44,21 @@ const useWebSocket = (chatId: number | null) => {
             }
         };
 
-        socketRef.current.onclose = () => {
-            setIsConnected(false);
-            console.log('WebSocket disconnected');
+        socketRef.current.onclose = (event: CloseEvent) => {
+            if (event.code === 1000) {
+                setIsConnected(false);
+                if (socketRef.current?.readyState === WebSocket.OPEN) {
+                    socketRef.current.close(1000); // Закрыть предыдущее соединение
+                }
+                console.log('WebSocket disconnected');
+                return;
+
+            } // Нормальное закрытие
+
+            setTimeout(() => {
+                reconnectAttempts.current += 1;
+                connect();
+            }, Math.min(1000 * reconnectAttempts.current, 10000));
         };
 
         socketRef.current.onerror = (error: Event) => {
@@ -56,7 +77,7 @@ const useWebSocket = (chatId: number | null) => {
 
     const closeConnection = useCallback(() => {
         if (socketRef.current) {
-            socketRef.current.close();
+            socketRef.current.close(1000);
         }
     }, []);
 
@@ -67,7 +88,7 @@ const useWebSocket = (chatId: number | null) => {
 
         return () => {
             if (socketRef.current) {
-                socketRef.current.close(); // Закрываем соединение при переключении чатов
+                socketRef.current.close(1000); // Закрываем соединение при переключении чатов
             }
         };
     }, [chatId, connect]); // Переподключение, если chatId изменился
