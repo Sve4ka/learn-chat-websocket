@@ -60,6 +60,7 @@ const Chat: React.FC = () => {
     const [addUserError, setAddUserError] = useState<string | null>(null); // Ошибка добавления пользователя
     const [showScrollButton, setShowScrollButton] = useState(false);
     const fileInputRef = useRef<HTMLInputElement>(null);
+    const [isChatListVisible, setIsChatListVisible] = useState(true);
 // Перенаправление на страницу логина, если userId отсутствует
 
 
@@ -274,8 +275,15 @@ const Chat: React.FC = () => {
 
     return (
         <div className="chat-container">
+            <button
+                className="toggle-chat-list-button"
+                onClick={() => setIsChatListVisible(!isChatListVisible)}
+            >
+                {isChatListVisible ? '◀' : '▶'}
+            </button>
             {/* Список чатов */}
-            <div className="chat-list">
+            {isChatListVisible && (
+                <div className={`chat-list ${isChatListVisible ? 'visible' : 'hidden'}`}>
                 <h3>Чаты {chatsError && (
                     <div className="error-message">{chatsError}</div>
                 )}</h3>
@@ -313,7 +321,7 @@ const Chat: React.FC = () => {
                 {chatsError && (
                     <div className="error-message">{chatsError}</div>
                 )}
-            </div>
+            </div>)}
 
             {/* Содержимое чата */}
             {currentChat && (

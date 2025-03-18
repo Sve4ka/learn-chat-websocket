@@ -460,3 +460,71 @@ body {
     max-height: 200px;
   }
 }
+
+/* Кнопка переключения списка чатов */
+.toggle-chat-list-button {
+  position: fixed;
+  left: 10px;
+  top: 50%;
+  transform: translateY(-50%);
+  z-index: 1000;
+  width: 30px;
+  height: 30px;
+  border-radius: 50%;
+  background: var(--accent-200);
+  color: var(--text-100);
+  border: none;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.toggle-chat-list-button:hover {
+  transform: translateY(-50%) scale(1.1);
+  box-shadow: 0 2px 8px rgba(0,0,0,0.2);
+}
+
+/* Адаптация основного контента при скрытом списке */
+/* Стили для списка чатов */
+.chat-list {
+  width: 300px;
+  height: 100%;
+  background: rgba(18, 31, 23, 0.95);
+  transform: translateX(0);
+  transition: transform 0.3s ease;
+}
+
+.chat-list.hidden {
+  transform: translateX(-100%);
+  box-shadow: none;
+}
+
+/* Адаптация основного контента */
+.chat-content {
+  margin-left: 0;
+  transition: margin-left 0.3s ease;
+}
+
+.chat-list.hidden + .chat-content {
+  margin-left: 0;
+  width: 100%;
+}
+
+/* Медиа-запросы для мобильных */
+@media (max-width: 768px) {
+  .chat-list {
+    position: fixed;
+    z-index: 999;
+  }
+
+  .chat-list.hidden {
+    transform: translateX(-100%);
+  }
+
+  .chat-list.visible {
+    transform: translateX(0);
+    box-shadow: 2px 0 8px rgba(0,0,0,0.1);
+  }
+}
