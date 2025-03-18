@@ -12,14 +12,16 @@ type Chat struct {
 }
 
 type MessageGet struct {
-	Text       string `json:"text"`
+	Type       string `json:"type"`
+	Text       string `json:"content"`
 	SenderID   int    `json:"sender_id"`   // Тип должен совпадать с клиентом
 	SenderName string `json:"sender_name"` // Добавьте если используется
 	Timestamp  string `json:"timestamp"`
 }
 
 type MessageBase struct {
-	Text       string    `json:"text"`
+	Type       string    `json:"type"`
+	Text       string    `json:"content"`
 	SenderID   int       `json:"sender_id"`   // Тип должен совпадать с клиентом
 	SenderName string    `json:"sender_name"` // Добавьте если используется
 	Timestamp  time.Time `json:"timestamp"`

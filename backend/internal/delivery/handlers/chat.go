@@ -90,14 +90,19 @@ func (h *ChatHandler) reader(conn *websocket.Conn, clientID string, done chan<- 
 		fmt.Println(getMSG)
 
 		parsedTime, err := time.Parse("Mon Jan 02 2006 15:04:05 GMT-0700 (Москва, стандартное время)", getMSG.Timestamp)
+		parsedTime1, err1 := time.Parse("Mon Jan 02 2006 15:04:05 GMT-0700  (Moscow Standard Time)", getMSG.Timestamp)
 		fmt.Println(parsedTime, getMSG.Timestamp, err)
-		if err != nil {
+		if err != nil && err1 != nil {
 			h.log.Error(err.Error())
 			conn.WriteJSON(map[string]string{"error": "Invalid timestamp"})
 			continue
 		}
+		if err != nil {
+			parsedTime = parsedTime1
+		}
 
 		msg = models.MessageBase{
+			Type:       getMSG.Type,
 			Text:       getMSG.Text,
 			SenderID:   getMSG.SenderID,
 			SenderName: getMSG.SenderName,

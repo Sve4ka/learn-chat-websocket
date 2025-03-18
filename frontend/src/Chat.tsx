@@ -1,4 +1,4 @@
-import React, {useEffect, useState} from 'react';
+import React, {useCallback, useEffect, useRef, useState} from 'react';
 import {useNavigate} from 'react-router-dom';
 import useWebSocket from './useWebSocket';
 import URL from "./api.ts"
@@ -6,7 +6,8 @@ import URL from "./api.ts"
 interface Message {
     sender_name: string;
     sender_id: number;
-    text: string;
+    type: 'text' | 'image';
+    content: string;
     timestamp: string;
 }
 
@@ -14,6 +15,32 @@ interface Chat {
     id: number;
     name: string;
 }
+
+const MessageComponent: React.FC<{
+    msg: Message,
+    userId: number
+}> = ({ msg, userId }) => {
+    const isUser = msg.sender_id === userId;
+
+    return (
+        <div className={`message ${isUser ? 'sent' : 'received'}`}>
+            <div className="message-content">
+                <div className="message-header">
+                    {isUser ? "you" : msg.sender_name} • {msg.timestamp}
+                </div>
+                {msg.type === 'image' ? (
+                    <img
+                        src={msg.content}
+                        alt="sent content"
+                        className="message-image"
+                    />
+                ) : (
+                    <div className="message-text">{msg.content}</div>
+                )}
+            </div>
+        </div>
+    );
+};
 
 const Chat: React.FC = () => {
     const [inputText, setInputText] = useState('');
@@ -23,8 +50,7 @@ const Chat: React.FC = () => {
     const {isConnected, messages, sendMessage} = useWebSocket(currentChat ? currentChat.id : null); // Передача динамического URL
     const userId = JSON.parse(localStorage.getItem('userId') || "0");
     const navigate = useNavigate();
-    // const messageContainerRef = useRef<HTMLDivElement>(null);
-    const [chatsLoading, setChatsLoading] = useState(false); // Состояние загрузки чатов
+    const messageContainerRef = useRef<HTMLDivElement>(null);
     const [chatsError, setChatsError] = useState<string | null>(null); // Состояние ошибки чатов
     const [messagesLoading, setMessagesLoading] = useState(false); // Состояние загрузки сообщений
     const [messagesError, setMessagesError] = useState<string | null>(null); // Состояние ошибки сообщений
@@ -32,7 +58,44 @@ const Chat: React.FC = () => {
     const [newChatNameInput, setNewChatNameInput] = useState(''); // Состояние для ввода имени нового чата
     const [newUserId, setNewUserId] = useState(''); // Новое состояние для ввода ID пользователя
     const [addUserError, setAddUserError] = useState<string | null>(null); // Ошибка добавления пользователя
+    const [showScrollButton, setShowScrollButton] = useState(false);
+    const fileInputRef = useRef<HTMLInputElement>(null);
 // Перенаправление на страницу логина, если userId отсутствует
+
+
+    const checkScrollPosition = useCallback(() => {
+        if (messageContainerRef.current) {
+            const {scrollTop, scrollHeight, clientHeight} = messageContainerRef.current;
+            const isNearBottom = scrollHeight - (scrollTop + clientHeight) < 100;
+            setShowScrollButton(!isNearBottom);
+        }
+    }, []);
+
+
+    const handleFileSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
+        const file = e.target.files?.[0];
+        if (!file) return;
+
+        // Проверка размера файла (макс 5MB)
+        if (file.size > 5 * 1024 * 1024) {
+            alert('Максимальный размер файла 5MB');
+            return;
+        }
+
+        const reader = new FileReader();
+        reader.onloadend = () => {
+            const base64String = reader.result as string;
+            sendMessage({
+                sender_name: "you",
+                sender_id: userId,
+                type: 'image',
+                content: base64String,
+                timestamp: new Date().toString()
+            });
+        };
+        reader.readAsDataURL(file);
+    };
+
     useEffect(() => {
         if (!userId) {
             navigate('/login');
@@ -41,16 +104,18 @@ const Chat: React.FC = () => {
 
     // Получение списка чатов
     useEffect(() => {
-        fetchChats();
+        void fetchChats();
     }, []);
 
     // Получение сообщений чата при его выборе
     useEffect(() => {
         if (currentChat) {
-            fetchOldMessages();
+            void fetchOldMessages();
         } else {
             setAllMessages([]); // Очистка сообщений при сбросе чата
         }
+        scrollToBottom();
+        void fetchChats();
     }, [currentChat]);
 
     // Объединение старых и новых сообщений
@@ -59,24 +124,57 @@ const Chat: React.FC = () => {
             setAllMessages((prevMessages) => {
                 const safePrevMessages = prevMessages || []; // Инициализация prevMessages как пустого массива
                 const uniqueNewMessages = messages.filter(newMessage =>
-                    !safePrevMessages.some(existingMessage => existingMessage.timestamp === newMessage.timestamp && existingMessage.text === newMessage.text)
+                    !safePrevMessages.some(existingMessage => existingMessage.timestamp === newMessage.timestamp && existingMessage.content === newMessage.content)
                 );
+                setTimeout(() => {
+                    checkScrollPosition();
+                    if (messageContainerRef.current) {
+                        const {scrollTop, scrollHeight, clientHeight} = messageContainerRef.current;
+                        const isNearBottom = scrollHeight - (scrollTop + clientHeight) < 300;
+                        if (isNearBottom) {
+                            scrollToBottom();
+                        }
+                    }
+                }, 50);
+
+
+
                 return [...safePrevMessages, ...uniqueNewMessages];
             });
         }
+
+        fetchChats();
     }, [messages]);
 
+    useEffect(() => {
+        const container = messageContainerRef.current;
+        if (container) {
+            container.addEventListener('scroll', checkScrollPosition);
+            return () => container.removeEventListener('scroll', checkScrollPosition);
+        }
+    }, [checkScrollPosition]);
+
+
+    const ScrollToBottomButton = () => (
+        <button
+            className="scroll-bottom-button"
+            onClick={scrollToBottom}
+            style={{display: showScrollButton ? 'block' : 'none'}}
+        >
+            ↓
+        </button>
+    );
 
     // Обработка отправки сообщений
     const handleSendMessage = () => {
         if (inputText.trim() && isConnected) {
-            const message: Message = {
+            sendMessage({
                 sender_name: "you",
                 sender_id: userId,
-                text: inputText,
-                timestamp: new Date().toString(),
-            };
-            sendMessage(message);
+                type: 'text',
+                content: inputText,
+                timestamp: new Date().toString()
+            });
             setInputText('');
         }
     };
@@ -104,7 +202,6 @@ const Chat: React.FC = () => {
     };
 
     const fetchChats = async () => {
-        setChatsLoading(true); // Начало загрузки
         setChatsError(null); // Сброс ошибок
         try {
             const response = await fetch(`${URL.API}/ws/chat/user/${userId}`);
@@ -116,18 +213,18 @@ const Chat: React.FC = () => {
         } catch (error: any) {
             console.error('Ошибка получения чатов:', error);
             setChatsError(error.message); // Установка сообщения об ошибке
-        } finally {
-            setChatsLoading(false); // Завершение загрузки в любом случае
         }
     };
 
-    // Обработка нажатия клавиши Enter
-    const handleKeyPress = (e: React.KeyboardEvent) => {
-        if (e.key === 'Enter') {
-            handleSendMessage();
+    const scrollToBottom = useCallback(() => {
+        if (messageContainerRef.current) {
+            messageContainerRef.current.scrollTo({
+                top: messageContainerRef.current.scrollHeight,
+                behavior: 'smooth'
+            });
+            setShowScrollButton(false);
         }
-    };
-
+    }, []);
     // Создание нового чата
     const handleCreateChat = async () => {
         setIsCreatingChat(true); // Начало создания чата
@@ -179,13 +276,10 @@ const Chat: React.FC = () => {
         <div className="chat-container">
             {/* Список чатов */}
             <div className="chat-list">
-                <h3>Чаты</h3>
-                {chatsError && (
+                <h3>Чаты {chatsError && (
                     <div className="error-message">{chatsError}</div>
-                )}
-                {chatsLoading && (
-                    <div className="loading-indicator">Загрузка чатов...</div>
-                )}
+                )}</h3>
+
 
                 <div className="add-user-form">
                     <input
@@ -236,16 +330,16 @@ const Chat: React.FC = () => {
                                     onChange={(e) => setNewUserId(e.target.value)}
                                     className="input-field"
                                 />
-                            <button
-                                onClick={handleAddUser}
-                                className="button"
-                            >
-                                Добавить
-                            </button>
-                        </div>
-                    )}
-                </div>
-                    <div className="message-list">
+                                <button
+                                    onClick={handleAddUser}
+                                    className="button"
+                                >
+                                    Добавить
+                                </button>
+                            </div>
+                        )}
+                    </div>
+                    <div className="message-list" ref={messageContainerRef}>
                         {addUserError && (
                             <div className="error-message">{addUserError}</div>
                         )}
@@ -256,32 +350,50 @@ const Chat: React.FC = () => {
                             <div className="loading-indicator">Загрузка сообщений...</div>
                         )}
 
-                        {allMessages === null || allMessages.length <= 0  ? (
-                            <div className="loading-indicator">Нет сообщений</div>
-                        )
-                        :
+                        {allMessages === null || allMessages.length <= 0 ? (
+                                <div className="loading-indicator">Нет сообщений</div>
+                            )
+                            :
                             (
-                            allMessages.map((msg, index) => (
-                                <div key={index} className={`message ${msg.sender_id === userId ? 'sent' : 'received'}`}>
-                                    <div className="message-header">
-                                        {msg.sender_id === userId ? "you" : msg.sender_name} • {msg.timestamp}
-                                    </div>
-                                    <div>{msg.text}</div>
-                                </div>
-                            ))
-                        )}
+                                allMessages.map((msg, index) => (
+                                    <MessageComponent
+                                        key={index}
+                                        msg={msg}
+                                        userId={userId}
+                                    />
+                                ))
+                            )}
+                        <ScrollToBottomButton/>
                     </div>
 
                     <div className="message-input-container">
+                        {/* Кнопка для выбора изображения */}
+                        <button
+                            type="button"
+                            className="button icon-button"
+                            onClick={() => fileInputRef.current?.click()}
+                        >
+                            📎
+                        </button>
+
+                        <input
+                            type="file"
+                            accept="image/*"
+                            ref={fileInputRef}
+                            style={{display: 'none'}}
+                            onChange={handleFileSelect}
+                        />
+
+                        {/* Поле ввода текста */}
                         <input
                             type="text"
                             value={inputText}
                             onChange={(e) => setInputText(e.target.value)}
-                            onKeyPress={handleKeyPress}
-                            placeholder="Введите ваше сообщение..."
+                            onKeyPress={(e) => e.key === 'Enter' && handleSendMessage()}
+                            placeholder="Введите сообщение..."
                             className="input-field"
-                            disabled={!isConnected}
                         />
+
                         <button
                             onClick={handleSendMessage}
                             disabled={!isConnected}

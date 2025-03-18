@@ -71,13 +71,10 @@ body {
 
 /* Добавим в стили chat-content */
 .chat-content {
-  flex-grow: 1;
-  display: flex;
-  flex-direction: column;
-  height: 100vh;
-  max-height: 100vh;
-  overflow: hidden;
-  position: relative;
+  width: 100%;
+  max-width: 100vw;
+  display: grid;
+  grid-template-rows: auto 1fr auto;
 }
 
 /* Обновим message-list */
@@ -160,15 +157,62 @@ body {
 
 /* Стили сообщений */
 .message {
+  --message-max-width: min(680px, 90%);
+  --message-min-width: 240px;
+
   margin: 1rem 0;
-  padding: 1rem;
+  padding: 1.2rem;
   border-radius: var(--border-radius);
-  max-width: 70%;
+  max-width: var(--message-max-width);
+  min-width: var(--message-min-width);
+  width: var(--message-max-width);
   position: relative;
-  transition: var(--transition);
-  box-shadow: 0 2px 8px rgba(0,0,0,0.1);
-  animation: messageAppear 0.3s ease-out;
+  break-inside: avoid;
 }
+
+.message-content {
+  display: grid;
+  gap: 0.7rem;
+  grid-template-rows: auto 1fr;
+}
+
+.message-text {
+  line-height: 1.45;
+  word-break: break-word;
+  overflow-wrap: break-word;
+  hyphens: auto;
+  font-kerning: normal;
+  text-rendering: optimizeLegibility;
+  max-inline-size: 100%;
+}
+
+
+/* Для узких экранов */
+@media (max-width: 768px) {
+  .message {
+    --message-max-width: 94%;
+    --message-min-width: 160px;
+    padding: 1rem;
+    margin-left: 1% !important;
+    margin-right: 1% !important;
+  }
+}
+
+/* Убедимся что стили применяются ко всем типам сообщений */
+.message.sent {
+  background: var(--primary-300);
+  margin-left: auto;
+  margin-right: 2%;
+  color: var(--text-100);
+}
+
+/* Для полученных сообщений */
+.message.received {
+  background: var(--primary-100);
+  margin-left: 2%;
+  color: var(--text-200);
+}
+
 
 @keyframes messageAppear {
   from {
@@ -179,19 +223,6 @@ body {
     opacity: 1;
     transform: translateY(0);
   }
-}
-
-.message.sent {
-  background: var(--primary-300);
-  margin-left: auto;
-  color: var(--text-100);
-  border-bottom-right-radius: 4px;
-}
-
-.message.received {
-  background: var(--primary-100);
-  color: var(--text-200);
-  border-bottom-left-radius: 4px;
 }
 
 .message-header {
@@ -297,16 +328,7 @@ body {
   100% { transform: scale(1); }
 }
 
-/* Адаптивность */
-@media (max-width: 768px) {
-  .chat-list {
-    width: 250px;
-  }
 
-  .message {
-    max-width: 85%;
-  }
-}
 
 /* Auth Components */
 .auth-container {
@@ -376,4 +398,65 @@ body {
   display: block;
   margin-top: 0.5rem;
   font-size: 1.4rem;
+}
+
+.message-list {
+  scroll-behavior: smooth;
+  overflow-anchor: auto;
+}
+
+.scroll-bottom-button {
+  position: absolute;
+  bottom: 20px;
+  right: 20px;
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  background: var(--accent-200);
+  color: white;
+  border: none;
+  cursor: pointer;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.2);
+  transition: transform 0.2s, opacity 0.2s;
+  z-index: 1000;
+}
+
+.scroll-bottom-button:hover {
+  transform: scale(1.1);
+  opacity: 0.9;
+}
+
+.scroll-bottom-button:active {
+  transform: scale(0.95);
+}
+
+.scroll-bottom-button:hover {
+  transform: translateY(-2px);
+}
+
+.message-image {
+  max-width: 300px;
+  max-height: 300px;
+  border-radius: var(--border-radius);
+  object-fit: cover;
+  cursor: pointer;
+  transition: transform 0.2s;
+}
+
+.message-image:hover {
+  transform: scale(1.03);
+}
+
+.icon-button {
+  padding: 0.5rem;
+  min-width: 40px;
+  margin-right: 0.5rem;
+}
+
+/* Адаптивность для мобильных */
+@media (max-width: 768px) {
+  .message-image {
+    max-width: 200px;
+    max-height: 200px;
+  }
 }

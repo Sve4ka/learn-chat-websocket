@@ -48,11 +48,20 @@ func (r RepoChat) Create(ctx context.Context, chatName string, userID int) (int,
 }
 
 func (r RepoChat) AddUser(ctx context.Context, chatID int, userID int) (int, error) {
+	row := r.db.QueryRowContext(ctx, "SELECT count(*) from chat_user where id_user = $1 and id_chat = $2", userID, chatID)
+	var cnt int
+	err := row.Scan(&cnt)
+	if err != nil {
+		return 0, cerr.Scan(err)
+	}
+	if cnt != 0 {
+		return chatID, nil
+	}
 	transaction, err := r.db.BeginTxx(ctx, nil)
 	if err != nil {
 		return 0, cerr.Transaction(err)
 	}
-	row := transaction.QueryRowContext(ctx, "INSERT INTO chat_user (id_user, id_chat) VALUES ($1, $2) returning id_chat", userID, chatID)
+	row = transaction.QueryRowContext(ctx, "INSERT INTO  chat_user (id_user, id_chat) VALUES ($1, $2)  returning id_chat", userID, chatID)
 	err = row.Scan(&chatID)
 	if err != nil {
 		if rbErr := transaction.Rollback(); rbErr != nil {
@@ -111,13 +120,13 @@ func (r RepoChat) Chat(ctx context.Context, chatID int) (*models.AllChat, error)
 		return nil, cerr.Scan(err)
 	}
 	chat.ID = chatID
-	rows, err := r.db.QueryContext(ctx, "SELECT id, id_user, name_user, text, time from messages where id_chat = $1", chatID)
+	rows, err := r.db.QueryContext(ctx, "SELECT id, id_user, name_user, text, time, type from messages where id_chat = $1 order by id", chatID)
 	if err != nil {
 		return nil, cerr.ExecContext(err)
 	}
 	for rows.Next() {
 		var message models.Message
-		err = rows.Scan(&message.ID, &message.SenderID, &message.SenderName, &message.Text, &message.Timestamp)
+		err = rows.Scan(&message.ID, &message.SenderID, &message.SenderName, &message.Text, &message.Timestamp, &message.Type)
 		if err != nil {
 			return nil, cerr.Scan(err)
 		}
@@ -139,7 +148,7 @@ func (r RepoChat) ChatMessage(ctx context.Context, message models.MessageChatBas
 	if err != nil {
 		return nil, cerr.Scan(err)
 	}
-	row = transaction.QueryRowContext(ctx, "INSERT INTO messages (id_user, name_user, text, time, id_chat) values ($1, $2, $3, $4, $5) returning id", message.SenderID, message.SenderName, message.Text, message.Timestamp, message.ChatID)
+	row = transaction.QueryRowContext(ctx, "INSERT INTO messages (id_user, name_user, text, time, id_chat, type) values ($1, $2, $3, $4, $5, $6) returning id", message.SenderID, message.SenderName, message.Text, message.Timestamp, message.ChatID, message.Type)
 	err = row.Scan(&id)
 	if err != nil {
 		if rbErr := transaction.Rollback(); rbErr != nil {

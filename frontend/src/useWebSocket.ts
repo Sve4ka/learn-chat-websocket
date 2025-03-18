@@ -5,7 +5,8 @@ import URL from "./api.ts"
 interface Message {
     sender_name: string;
     sender_id: number;
-    text: string;
+    type: 'text' | 'image';
+    content: string;
     timestamp: string;
 }
 
@@ -18,22 +19,17 @@ const useWebSocket = (chatId: number | null) => {
 
     // Установить соединение WebSocket при изменении chatId
     const connect = useCallback(() => {
-        if (socketRef.current?.readyState === WebSocket.OPEN) {
-            isClosingRef.current = true;
-            socketRef.current.close(1000);
+        const safeCloseSocket = (code = 1000) => {
+            if (socketRef.current) {
+                isClosingRef.current = true; // Помечаем закрытие как инициированное пользователем
+                socketRef.current.close(code);
+            }
+        };
+        if (chatId === null) return;
 
-            // Ждем завершения закрытия
-            const closeTimeout = setTimeout(() => {
-                if (socketRef.current) {
-                    socketRef.current.close(1000);
-                }
-                isClosingRef.current = false;
-            }, 5000);
-
-            return () => clearTimeout(closeTimeout);
-        }
-        if (chatId === null) {
-            return; // Не подключаться, если нет выбранного чата
+        // Закрываем предыдущее соединение только если chatId изменился
+        if (socketRef.current && socketRef.current.url !== `${URL.WS}/ws/chat/${chatId}`) {
+            safeCloseSocket(1000);
         }
 
         const url = `${URL.WS}/ws/chat/${chatId}`;
@@ -57,9 +53,7 @@ const useWebSocket = (chatId: number | null) => {
         socketRef.current.onclose = (event: CloseEvent) => {
             if (event.code === 1000) {
                 setIsConnected(false);
-                if (socketRef.current?.readyState === WebSocket.OPEN) {
-                    socketRef.current.close(1000); // Закрыть предыдущее соединение
-                }
+
                 console.log('WebSocket disconnected');
                 isClosingRef.current = false;
                 return;
@@ -114,4 +108,3 @@ const useWebSocket = (chatId: number | null) => {
 };
 
 export default useWebSocket;
-

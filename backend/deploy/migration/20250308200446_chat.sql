@@ -20,7 +20,8 @@ CREATE TABLE IF NOT EXISTS messages
     id_user   int,
     name_user varchar,
     text      varchar,
-    time timestamp
+    time timestamp,
+    type varchar
 );
 -- +goose StatementEnd
 

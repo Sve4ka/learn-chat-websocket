@@ -54,13 +54,13 @@ func (h UserHandler) Create(g *gin.Context) {
 // @Tags user
 // @Accept  json
 // @Produce  json
-// @Param id query int true "UserID"
+// @Param id path int true "UserID"
 // @Success 200 {object} int "Successfully get user"
 // @Failure 400 {object} map[string]string "Invalid input"
 // @Failure 500 {object} map[string]string "Internal server error"
 // @Router /user/{id} [get]
 func (h UserHandler) Get(c *gin.Context) {
-	id := c.Query("id")
+	id := c.Param("id")
 	aid, err := strconv.Atoi(id)
 	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
